@@ -92,7 +92,7 @@ def load_data(ticker, n_steps=50, scale=True, shuffle=True, lookup_step=1,
     return result
 
 def create_model(sequence_length, units=256, cell=LSTM, n_layers=2, dropout=0.3,
-                loss="mean_absolute_error", optimizer="rmsprop", bidirectional=False):
+                loss="mean_Sq", optimizer="rmsprop", bidirectional=False):
     model = Sequential()
     for i in range(n_layers):
         if i == 0:
@@ -115,20 +115,21 @@ def create_model(sequence_length, units=256, cell=LSTM, n_layers=2, dropout=0.3,
                 model.add(cell(units, return_sequences=True))
         # add dropout after each layer
         model.add(Dropout(dropout))
+
     model.add(Dense(1, activation="linear"))
     model.compile(loss=loss, metrics=["mean_absolute_error"], optimizer=optimizer)
     return model
 
 
-def plot_graph(model, data):
+def plot_graph(model, data, length):
     y_test = data["y_test"]
     X_test = data["X_test"]
     y_pred = model.predict(X_test)
     y_test = np.squeeze(data["column_scaler"]["adjclose"].inverse_transform(np.expand_dims(y_test, axis=0)))
     y_pred = np.squeeze(data["column_scaler"]["adjclose"].inverse_transform(y_pred))
     # last 200 days, feel free to edit that
-    plt.plot(y_test[-200:], c='b')
-    plt.plot(y_pred[-200:], c='r')
+    plt.plot(y_test[-length:], c='b')
+    plt.plot(y_pred[-length:], c='r')
     plt.xlabel("Days")
     plt.ylabel("Price")
     plt.legend(["Actual Price", "Predicted Price"])
@@ -141,7 +142,7 @@ if __name__ == '__main__':
     # Window size or the sequence length
     N_STEPS = 70
     # Lookup step, 1 is the next day
-    LOOKUP_STEP = 1
+    LOOKUP_STEP = 3
     # test ratio size, 0.2 is 20%
     TEST_SIZE = 0.2
     # features to use
@@ -165,9 +166,9 @@ if __name__ == '__main__':
     LOSS = "huber_loss"
     OPTIMIZER = "adam"
     BATCH_SIZE = 64
-    EPOCHS = 400
+    EPOCHS = 50
     # Tesla stock market
-    ticker = "TSLA"
+    ticker = "SPY"
     ticker_data_filename = os.path.join("data", f"{ticker}_{date_now}.csv")
     # model name to save, making it as unique as possible based on parameters
     model_name = f"{date_now}_{ticker}-{LOSS}-{OPTIMIZER}-{CELL.__name__}-seq-{N_STEPS}-step-{LOOKUP_STEP}-layers-{N_LAYERS}-units-{UNITS}"
@@ -183,9 +184,10 @@ if __name__ == '__main__':
         os.mkdir("data")
 
     # load the data
-    data = load_data(ticker, N_STEPS, lookup_step=LOOKUP_STEP, test_size=TEST_SIZE, feature_columns=FEATURE_COLUMNS)
+    data = load_data(ticker, N_STEPS, lookup_step=LOOKUP_STEP, test_size=TEST_SIZE, feature_columns=FEATURE_COLUMNS, shuffle=False)
     # save the dataframe
     data["df"].to_csv(ticker_data_filename)
+    print(data)
     # construct the model
     model = create_model(N_STEPS, loss=LOSS, units=UNITS, cell=CELL, n_layers=N_LAYERS,
                         dropout=DROPOUT, optimizer=OPTIMIZER, bidirectional=BIDIRECTIONAL)
@@ -202,6 +204,6 @@ if __name__ == '__main__':
 
     # data = load_data(ticker, N_STEPS, lookup_step=LOOKUP_STEP, test_size=TEST_SIZE, feature_columns=FEATURE_COLUMNS)
     # model = load_model('results/2020-10-18_TSLA-huber_loss-adam-LSTM-seq-70-step-1-layers-3-units-256.h5')
-    plot_graph(model, data)
+    plot_graph(model, data, 5000)
 
     print('Finished!')
